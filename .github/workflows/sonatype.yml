@@ -1,0 +1,100 @@
+# Create Github Acction Repsitory Variables for your version of the application:
+#   LIFECYCLE_SERVER_URL - The URL of your Sonatype Lifecycle server (e.g. https://your-lifecycle-server.com)
+
+name: Sonatype SCA Scan
+
+# Set the permissions for the GITHUB_TOKEN to allow the workflow to read repository contents, write security events, and write pull request comments. This is necessary for the workflow to function properly, as it needs to access the codebase for scanning, report security findings, and comment on pull requests with the results.
+permissions:
+  contents: read
+  security-events: write
+  pull-requests: write
+  
+on:
+  push:
+    branches: [ main, feature/**, bugfix/** ]
+    paths:
+      - 'frontend/package.json'
+      - 'frontend/package-lock.json'
+      - 'build.gradle'
+      - 'settings.gradle'
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+# Global environment variables
+env:
+  DEFAULT_APP_NAME: "Enterprise Customer Portal"
+  DEFAULT_PARENT_RELEASE_NAME: "main"
+  DEFAULT_APP_ID: "enterprise-customer-portal"
+  JAVA_VERSION: "17"
+
+jobs:
+  Prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      SONATYPE_BACKEND_APP_ID: ${{ steps.commands.outputs.SONATYPE_BACKEND_APP_ID }}
+      SONATYPE_FRONTEND_APP_ID: ${{ steps.commands.outputs.SONATYPE_FRONTEND_APP_ID }}
+      FOD_BACKEND_RELEASE: ${{ steps.commands.outputs.FOD_BACKEND_RELEASE }}
+      FOD_FRONTEND_RELEASE: ${{ steps.commands.outputs.FOD_FRONTEND_RELEASE }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Set up environment variables
+        id: commands
+        run: |
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            echo "Running in a pull request pipeline ..."
+            BACKEND_RELEASE="${{ env.DEFAULT_APP_NAME }}:merge-to-${{ github.base_ref }}#PR${{ github.event.number }}-backend"
+            BACKEND_PARENT_RELEASE="${{ env.DEFAULT_APP_NAME }}:${{ github.head_ref }}-backend"
+            FRONTEND_RELEASE="${{ env.DEFAULT_APP_NAME }}:merge-to-${{ github.base_ref }}#PR${{ github.event.number }}-frontend"
+            FRONTEND_PARENT_RELEASE="${{ env.DEFAULT_APP_NAME }}:${{ github.head_ref }}-frontend"
+          else
+            echo "Running in a branch pipeline ..."
+            BACKEND_RELEASE="${{ env.DEFAULT_APP_NAME }}:${{ github.ref_name }}-backend"
+            BACKEND_PARENT_RELEASE="${{ env.DEFAULT_APP_NAME }}:${{ env.DEFAULT_PARENT_RELEASE_NAME }}-backend"
+            FRONTEND_RELEASE="${{ env.DEFAULT_APP_NAME }}:${{ github.ref_name }}-frontend"
+            FRONTEND_PARENT_RELEASE="${{ env.DEFAULT_APP_NAME }}:${{ env.DEFAULT_PARENT_RELEASE_NAME }}-frontend"
+          fi
+          SONATYPE_BACKEND_APP_ID="${{ env.DEFAULT_APP_ID }}-backend"
+          SONATYPE_FRONTEND_APP_ID="${{ env.DEFAULT_APP_ID }}-frontend"
+          echo "SONATYPE_BACKEND_APP_ID=${SONATYPE_BACKEND_APP_ID}" >> $GITHUB_OUTPUT
+          echo "SONATYPE_FRONTEND_APP_ID=${SONATYPE_FRONTEND_APP_ID}" >> $GITHUB_OUTPUT
+          echo "FOD_BACKEND_RELEASE=${BACKEND_RELEASE}" >> $GITHUB_OUTPUT
+          echo "FOD_BACKEND_PARENT_RELEASE=${BACKEND_PARENT_RELEASE}" >> $GITHUB_OUTPUT
+          echo "FOD_FRONTEND_RELEASE=${FRONTEND_RELEASE}" >> $GITHUB_OUTPUT
+          echo "FOD_FRONTEND_PARENT_RELEASE=${FRONTEND_PARENT_RELEASE}" >> $GITHUB_OUTPUT
+
+  sonatype-backend-scan:
+    needs: Prepare
+    runs-on: ubuntu-latest
+    env:
+      SONATYPE_BACKEND_APP_ID: ${{ needs.Prepare.outputs.SONATYPE_BACKEND_APP_ID }}
+    steps:
+      # Check out your code
+      - name: Checkout
+        id: checkout
+        uses: actions/checkout@v6
+      # Perform an evaluation 
+      - name: Run evaluate action
+        id: evaluate-backend
+        uses: sonatype/actions/evaluate@v1
+        with:
+          iq-server-url: ${{ vars.LIFECYCLE_SERVER_URL }}
+          username: ${{ secrets.LIFECYCLE_USERNAME }}
+          password: ${{ secrets.LIFECYCLE_PASSWORD }}
+          application-id: ${{ env.SONATYPE_BACKEND_APP_ID }}
+          scan-targets: build.gradle settings.gradle
+      # Fetch the SBOM file associated with the evaluation
+      - name: Fetch SBOM
+        uses: sonatype/actions/fetch-sbom@v1
+        if: ( success() || failure() ) && steps.evaluate-backend.outputs.scan-id 
+        with:
+          iq-server-url: ${{ vars.LIFECYCLE_SERVER_URL }}
+          username: ${{ secrets.LIFECYCLE_USERNAME }}
+          password: ${{ secrets.LIFECYCLE_PASSWORD }}
+          application-id: ${{ env.SONATYPE_BACKEND_APP_ID }}
+          scan-id: ${{ steps.evaluate-backend.outputs.scan-id }}
+          sbom-standard: cyclonedx
+          sbom-version: 1.6
+          sbom-format: json
+          artifact-name: ${{ env.SONATYPE_BACKEND_APP_ID }}-sbom.json

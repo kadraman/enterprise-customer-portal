@@ -70,3 +70,4 @@ skills
 frontend/.env.local
 .env
 .github/config/fortify.config
+vex/
