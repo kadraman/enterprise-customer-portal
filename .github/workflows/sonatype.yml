@@ -159,7 +159,7 @@ jobs:
           username: ${{ secrets.LIFECYCLE_USERNAME }}
           password: ${{ secrets.LIFECYCLE_PASSWORD }}
           application-id: ${{ env.SONATYPE_FRONTEND_APP_ID }}
-          scan-targets: package.json package-lock.json
+          scan-targets: frontend/package.json frontend/package-lock.json
       # Fetch the SBOM file associated with the evaluation
       - name: Fetch SBOM
         uses: sonatype/actions/fetch-sbom@v1
