@@ -120,7 +120,7 @@ jobs:
           FOD_CLIENT_ID: ${{ secrets.FOD_CLIENT_ID }}
           FOD_CLIENT_SECRET: ${{ secrets.FOD_CLIENT_SECRET }}
           FOD_RELEASE: ${{ needs.Prepare.outputs.FOD_BACKEND_RELEASE }}
-          SBOM_FILE: ${{ env.SONATYPE_BACKEND_APP_ID }}-sbom.json
+          SBOM_FILE: cyclonedx-bom.json
         run: |
           set -euo pipefail
 
@@ -140,6 +140,9 @@ jobs:
     needs: Prepare
     runs-on: ubuntu-latest
     if: github.event_name != 'push' || contains(github.ref, 'main') || contains(github.ref, 'feature/') || contains(github.ref, 'bugfix/')
+    defaults:
+      run:
+        working-directory: frontend
     env:
       SONATYPE_FRONTEND_APP_ID: ${{ needs.Prepare.outputs.SONATYPE_FRONTEND_APP_ID }}
     steps:
@@ -156,7 +159,7 @@ jobs:
           username: ${{ secrets.LIFECYCLE_USERNAME }}
           password: ${{ secrets.LIFECYCLE_PASSWORD }}
           application-id: ${{ env.SONATYPE_FRONTEND_APP_ID }}
-          scan-targets: frontend/package.json frontend/package-lock.json
+          scan-targets: package.json package-lock.json
       # Fetch the SBOM file associated with the evaluation
       - name: Fetch SBOM
         uses: sonatype/actions/fetch-sbom@v1
@@ -192,7 +195,7 @@ jobs:
           FOD_CLIENT_ID: ${{ secrets.FOD_CLIENT_ID }}
           FOD_CLIENT_SECRET: ${{ secrets.FOD_CLIENT_SECRET }}
           FOD_RELEASE: ${{ needs.Prepare.outputs.FOD_FRONTEND_RELEASE }}
-          SBOM_FILE: ${{ env.SONATYPE_FRONTEND_APP_ID }}-sbom.json
+          SBOM_FILE: cyclonedx-bom.json
         run: |
           set -euo pipefail
 
