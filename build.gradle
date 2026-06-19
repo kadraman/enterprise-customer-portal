@@ -1,0 +1,101 @@
+plugins {
+    id 'java'
+    id 'org.springframework.boot' version '3.2.1'
+    id 'io.spring.dependency-management' version '1.1.0'
+}
+
+group = 'com.opentext.appsec.demo'
+version = '1.0.0-SNAPSHOT'
+sourceCompatibility = '17'
+
+defaultTasks 'build'
+
+repositories {
+    mavenCentral()
+}
+
+// If the user invoked the `test` task, default to skipping frontend work
+def requestedTasks = gradle.startParameter.taskNames
+if (requestedTasks.any { it == 'test' || it == 'testClasses' || it == 'check' }) {
+    if (!project.hasProperty('skipFrontend')) {
+        ext.set('skipFrontend', 'true')
+        logger.lifecycle('Auto-setting skipFrontend=true because test task was requested')
+    }
+}
+
+// Use `npm.cmd` on Windows so Gradle can start the process correctly
+def npmCmd = System.getProperty('os.name').toLowerCase().contains('windows') ? 'npm.cmd' : 'npm'
+
+dependencies {
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    // Spring Boot Actuator (INSECURE: exposing all actuator endpoints configured in properties)
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    // OpenAPI / Swagger UI for documenting the REST API
+    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.1.0'
+    // springdoc core is provided by the starter; remove explicit core dependency
+    // Spring Security and JWT (INSECURE demo usage)
+    implementation 'org.springframework.boot:spring-boot-starter-security'
+    implementation 'org.springframework.boot:spring-boot-starter-oauth2-resource-server'
+    implementation 'org.springframework.security:spring-security-oauth2-jose:6.2.0'
+    implementation 'io.jsonwebtoken:jjwt-api:0.11.5'
+    runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.11.5'
+    runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.11.5'
+    // INSECURE (intentional): legacy vulnerable dependency included for SCA demo findings. Secure alternative: upgrade to commons-collections 3.2.2+ or avoid unsafe Java deserialization gadgets.
+    implementation 'commons-collections:commons-collections:3.2.1'
+    // INSECURE (intentional): outdated XStream version with known CVEs. Secure alternative: use a current XStream release with strict type allow-listing.
+    implementation 'com.thoughtworks.xstream:xstream:1.4.10'
+    // INSECURE (intentional): old Bouncy Castle version with known security issues. Secure alternative: use the latest maintained bcprov-jdk18on release.
+    implementation 'org.bouncycastle:bcprov-jdk15on:1.60'
+    runtimeOnly 'com.h2database:h2'
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+}
+
+tasks.withType(JavaCompile) {
+    options.encoding = 'UTF-8'
+}
+
+// Ensure tests use JUnit Platform
+test {
+    useJUnitPlatform()
+}
+
+// Frontend build/copy tasks for embedded SPA (React + Vite)
+if (!project.hasProperty('skipFrontend')) {
+    // Frontend build/copy tasks for embedded SPA (React + Vite)
+    tasks.register('npmInstall') {
+        doLast {
+            exec {
+                workingDir "${projectDir}/frontend"
+                commandLine npmCmd, 'ci'
+            }
+        }
+    }
+
+    tasks.register('buildFrontend') {
+        dependsOn 'npmInstall'
+        doLast {
+            exec {
+                workingDir "${projectDir}/frontend"
+                commandLine npmCmd, 'run', 'build'
+            }
+        }
+    }
+
+    tasks.register('copyFrontend', Copy) {
+        dependsOn 'buildFrontend'
+        from file('frontend/dist')
+        into file('src/main/resources/static')
+    }
+
+    // Ensure the frontend is copied as part of a Gradle build
+    build.dependsOn 'copyFrontend'
+
+    // Declare explicit dependency so processResources runs after copyFrontend
+    // This avoids an implicit dependency warning/failure on CI (Gradle validation)
+    tasks.named('processResources') {
+        dependsOn 'copyFrontend'
+    }
+} else {
+    logger.lifecycle('Skipping frontend build/copy because -PskipFrontend is set')
+}

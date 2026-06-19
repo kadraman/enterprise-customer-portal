@@ -1,0 +1,49 @@
+
+services:
+  enterprise-customer-portal:
+    build:
+      context: .
+      args:
+        # Pass these via shell/.env/--env-file so Vite can embed them at build time.
+        ENTRA_CLIENT_ID: ${ENTRA_CLIENT_ID:-your-client-id}
+        ENTRA_TENANT_ID: ${ENTRA_TENANT_ID:-your-tenant-id}
+        ENTRA_AUTHORITY: ${ENTRA_AUTHORITY:-https://login.microsoftonline.com/your-tenant-id}
+        ENTRA_API_SCOPES: ${ENTRA_API_SCOPES:-User.Read}
+        ENTRA_API_REDIRECT_URI: ${ENTRA_API_REDIRECT_URI:-http://localhost:8080}
+        ENTRA_POPUP_REDIRECT_URI: ${ENTRA_POPUP_REDIRECT_URI:-http://localhost:8080/auth-popup.html}
+    image: ghcr.io/fortify-presales/enterprise-customer-portal:latest
+    container_name: enterprise-customer-portal
+    environment:
+      # Provide this in your shell or .env file: ENTRA_TENANT_ID=<your-tenant-id>
+      - ENTRA_TENANT_ID=${ENTRA_TENANT_ID:-unknown}
+    ports:
+      - "8080:8080"
+    networks:
+      - demo-net
+    restart: unless-stopped
+
+  fortify-connect:
+    image: fortifydocker/fortify-connect:25.4.alpine.3.18
+    container_name: fdc_client
+    privileged: true
+    restart: unless-stopped
+    # Store credentials in a separate env file (DO NOT commit secrets).
+    env_file:
+      - .fdc.env
+    # Helpful defaults; override in .fdc.env if needed. The demo app is reachable
+    # at http://enterprise-customer-portal:8080 because both services share the same Compose network.
+    environment:
+      - FDC_ADDRESS=emea.fodconnect.com:443
+      - FDC_PROXY=3128
+      - FDC_CERT_CHECK=0
+      - DEMO_APP_URL=http://enterprise-customer-portal:8080
+      # Default tunnel logs flag; the PS wrapper sets FDC_TUNNEL_LOGS when running in debug.
+      - FDC_TUNNEL_LOGS=0
+    networks:
+      - demo-net
+    depends_on:
+      - enterprise-customer-portal
+
+networks:
+  demo-net:
+    driver: bridge
