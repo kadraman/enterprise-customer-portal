@@ -18,10 +18,10 @@ permissions:
   pull-requests: write
 
 on:
-  push:
-    branches: [ main, feature/**, bugfix/** ]
-  pull_request:
-    branches: [ main ]
+  #push:
+  #  branches: [ main, feature/**, bugfix/** ]
+  #pull_request:
+  #  branches: [ main ]
   workflow_dispatch:
 
 # Global environment variables

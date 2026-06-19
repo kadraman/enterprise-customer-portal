@@ -10,15 +10,15 @@ permissions:
   pull-requests: write
   
 on:
-  push:
-    branches: [ main, feature/**, bugfix/** ]
-    paths:
-      - 'frontend/package.json'
-      - 'frontend/package-lock.json'
-      - 'build.gradle'
-      - 'settings.gradle'
-  pull_request:
-    branches: [ main ]
+  #push:
+  #  branches: [ main, feature/**, bugfix/** ]
+  #  paths:
+  #    - 'frontend/package.json'
+  #    - 'frontend/package-lock.json'
+  #    - 'build.gradle'
+  #     - 'settings.gradle'
+  #pull_request:
+  #  branches: [ main ]
   workflow_dispatch:
 
 # Global environment variables
@@ -195,7 +195,7 @@ jobs:
           FOD_CLIENT_ID: ${{ secrets.FOD_CLIENT_ID }}
           FOD_CLIENT_SECRET: ${{ secrets.FOD_CLIENT_SECRET }}
           FOD_RELEASE: ${{ needs.Prepare.outputs.FOD_FRONTEND_RELEASE }}
-          SBOM_FILE: cyclonedx-bom.json
+          SBOM_FILE: ../cyclonedx-bom.json
         run: |
           set -euo pipefail
 
