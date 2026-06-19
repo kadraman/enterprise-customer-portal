@@ -67,6 +67,10 @@ jobs:
   sonatype-backend-scan:
     needs: Prepare
     runs-on: ubuntu-latest
+    if: |
+      contains(github.event.head_commit.modified || '', 'build.gradle') ||
+      contains(github.event.head_commit.modified || '', 'settings.gradle') ||
+      github.event_name != 'push'
     env:
       SONATYPE_BACKEND_APP_ID: ${{ needs.Prepare.outputs.SONATYPE_BACKEND_APP_ID }}
     steps:
@@ -98,3 +102,42 @@ jobs:
           sbom-version: 1.6
           sbom-format: json
           artifact-name: ${{ env.SONATYPE_BACKEND_APP_ID }}-sbom-json
+
+  sonatype-frontend-scan:
+    needs: Prepare
+    runs-on: ubuntu-latest
+    if: |
+      contains(github.event.head_commit.modified || '', 'frontend/package.json') ||
+      contains(github.event.head_commit.modified || '', 'frontend/package-lock.json') ||
+      github.event_name != 'push'
+    env:
+      SONATYPE_FRONTEND_APP_ID: ${{ needs.Prepare.outputs.SONATYPE_FRONTEND_APP_ID }}
+    steps:
+      # Check out your code
+      - name: Checkout
+        id: checkout
+        uses: actions/checkout@v6
+      # Perform an evaluation
+      - name: Run evaluate action
+        id: evaluate-frontend
+        uses: sonatype/actions/evaluate@v1
+        with:
+          iq-server-url: ${{ vars.LIFECYCLE_SERVER_URL }}
+          username: ${{ secrets.LIFECYCLE_USERNAME }}
+          password: ${{ secrets.LIFECYCLE_PASSWORD }}
+          application-id: ${{ env.SONATYPE_FRONTEND_APP_ID }}
+          scan-targets: frontend/package.json frontend/package-lock.json
+      # Fetch the SBOM file associated with the evaluation
+      - name: Fetch SBOM
+        uses: sonatype/actions/fetch-sbom@v1
+        if: ( success() || failure() ) && steps.evaluate-frontend.outputs.scan-id
+        with:
+          iq-server-url: ${{ vars.LIFECYCLE_SERVER_URL }}
+          username: ${{ secrets.LIFECYCLE_USERNAME }}
+          password: ${{ secrets.LIFECYCLE_PASSWORD }}
+          application-id: ${{ env.SONATYPE_FRONTEND_APP_ID }}
+          scan-id: ${{ steps.evaluate-frontend.outputs.scan-id }}
+          sbom-standard: cyclonedx
+          sbom-version: 1.6
+          sbom-format: json
+          artifact-name: ${{ env.SONATYPE_FRONTEND_APP_ID }}-sbom-json
