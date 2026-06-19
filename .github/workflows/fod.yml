@@ -146,7 +146,7 @@ jobs:
           FOD_CLIENT_SECRET: ${{secrets.FOD_CLIENT_SECRET}}
           SETUP_EXTRA_OPTS: ${{ format('--sdlc-status Development --app-owner {0}', vars.FOD_DEFAULT_OWNER) }}
           BASE_DIR: ./frontend
-          PACKAGE_EXTRA_OPTS: -bt npm -bf package.json -bc "npm run build"
+          PACKAGE_EXTRA_OPTS: -bt none
           COPY_FROM_RELEASE: ${{ env.FOD_PARENT_RELEASE }}
           SAST_ASSESSMENT_TYPE: ${{ vars.FOD_DEFAULT_ASSESSMENT_TYPE }}
           SAST_WAIT_EXTRA_OPTS: --timeout 3h
