@@ -99,6 +99,15 @@ jobs:
           sbom-version: 1.6
           sbom-format: json
           artifact-name: ${{ env.SONATYPE_BACKEND_APP_ID }}-sbom
+      # Debug: List files to check SBOM
+      - name: Debug - List SBOM files (backend)
+        if: always()
+        run: |
+          echo "Listing files in current directory:"
+          ls -lah
+          echo ""
+          echo "Looking for SBOM files:"
+          ls -lah *sbom* || echo "No sbom files found"
       # Set up fcli
       - name: Set up fcli
         uses: fortify/github-action/setup@v3
@@ -162,6 +171,15 @@ jobs:
           sbom-version: 1.6
           sbom-format: json
           artifact-name: ${{ env.SONATYPE_FRONTEND_APP_ID }}-sbom
+      # Debug: List files to check SBOM
+      - name: Debug - List SBOM files (frontend)
+        if: always()
+        run: |
+          echo "Listing files in current directory:"
+          ls -lah
+          echo ""
+          echo "Looking for SBOM files:"
+          ls -lah *sbom* || echo "No sbom files found"
       # Set up fcli
       - name: Set up fcli
         uses: fortify/github-action/setup@v3
