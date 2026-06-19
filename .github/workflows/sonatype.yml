@@ -97,4 +97,4 @@ jobs:
           sbom-standard: cyclonedx
           sbom-version: 1.6
           sbom-format: json
-          artifact-name: ${{ env.SONATYPE_BACKEND_APP_ID }}-sbom.json
+          artifact-name: ${{ env.SONATYPE_BACKEND_APP_ID }}-sbom-json
